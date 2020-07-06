@@ -1,19 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-This is a skeleton file that can serve as a starting point for a Python
-console script. To run this script uncomment the following lines in the
-[options.entry_points] section in setup.cfg:
-
-    console_scripts =
-         fibonacci = twoisprime.skeleton:run
-
-Then run `python setup.py install` which will install the command `fibonacci`
-inside your current environment.
-Besides console scripts, the header (i.e. until _logger...) of this file can
-also be used as template for Python modules.
-
-Note: This skeleton file can be safely removed if not needed!
+This is a script that analyses and displays color information of an input image.
 """
+
+import cv2
+import numpy as np
+from matplotlib import pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import cm
+from matplotlib import colors
+
 
 import argparse
 import sys
@@ -28,20 +24,31 @@ __license__ = "mit"
 _logger = logging.getLogger(__name__)
 
 
-def fib(n):
-    """Fibonacci example function
+def color_plot(image_path, resolution=100):
+    """Plot color information in HSV space
 
     Args:
-      n (int): integer
-
-    Returns:
-      int: n-th Fibonacci number
+      image_path (str): path to image file
+      resolution (int): resize value that determines the amount of pixels to consider
     """
-    assert n > 0
-    a, b = 1, 1
-    for i in range(n-1):
-        a, b = b, a+b
-    return a
+
+    img = cv2.imread(image_path)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+    small = cv2.resize(img, (resolution, resolution), interpolation = cv2.INTER_AREA)
+    pixel_colors = small.reshape((np.shape(small)[0]*np.shape(small)[1], 3))
+    norm = colors.Normalize(vmin=-1.,vmax=1.)
+    norm.autoscale(pixel_colors)
+    pixel_colors = norm(pixel_colors).tolist()
+    hsv = cv2.cvtColor(small, cv2.COLOR_RGB2HSV)
+    h, s, v = cv2.split(hsv)
+    fig = plt.figure()
+    axis = fig.add_subplot(1, 1, 1, projection="3d")
+    axis.scatter(h.flatten(), s.flatten(), v.flatten(), facecolors=pixel_colors, marker=".")
+    axis.set_xlabel("Hue")
+    axis.set_ylabel("Saturation")
+    axis.set_zlabel("Value")
+    plt.show()
 
 
 def parse_args(args):
@@ -54,14 +61,23 @@ def parse_args(args):
       :obj:`argparse.Namespace`: command line parameters namespace
     """
     parser = argparse.ArgumentParser(
-        description="Just a Fibonacci demonstration")
+        description="Color information script.")
     parser.add_argument(
         "--version",
         action="version",
         version="twoisprime {ver}".format(ver=__version__))
     parser.add_argument(
-        dest="n",
-        help="n-th Fibonacci number",
+        "-i",
+        "--image",
+        dest="image",
+        help="path to image file",
+        type=str,
+        metavar="STR")
+    parser.add_argument(
+        "-r",
+        "--resolution",
+        dest="resolution",
+        help="resize resolution",
         type=int,
         metavar="INT")
     parser.add_argument(
@@ -100,9 +116,9 @@ def main(args):
     """
     args = parse_args(args)
     setup_logging(args.loglevel)
-    _logger.debug("Starting crazy calculations...")
-    print("The {}-th Fibonacci number is {}".format(args.n, fib(args.n)))
-    _logger.info("Script ends here")
+    _logger.info("Processing...")
+    color_plot(args.image, args.resolution)
+    _logger.info("Done")
 
 
 def run():
